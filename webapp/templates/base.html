@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}{{ app_name }}{% endblock %} · {{ app_name }}</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<script src="/static/app.js" defer></script>
+</head>
+{% from "_macros.html" import icon with context %}
+{% macro navlink(href, label, match) -%}
+<a class="{{ 'on' if (path == href if match is none else path.startswith(match)) }}" href="{{ href }}">{{ label }}</a>
+{%- endmacro %}
+<body>
+<a class="skip btn" href="#main">Skip to content</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="app" href="/"><span class="app-icon">{{ icon('hook', 17, 2) }}</span><span class="app-name">{{ app_name }}</span><span class="app-sub">AiTM link forensics</span></a>
+    <nav class="segmented" aria-label="Views">
+      {{ navlink('/', 'Dashboard', none) }}
+      {{ navlink('/scans', 'Scans', '/scans') }}
+      {{ navlink('/sources', 'Sources', '/sources') }}
+    </nav>
+    <div class="topbar-end"><span class="muted small">read-only console</span></div>
+  </div>
+</header>
+<div class="shell">
+<aside class="rail" aria-label="Filters">
+  <section class="group">
+    <div class="group-title">Triage</div>
+    <nav class="nav" aria-label="Triage">
+      <a class="{{ 'on' if path == '/scans' and (request.query_params.get('status','all') == 'all') }}" href="/scans">{{ icon('list') }}All scans</a>
+      <a class="{{ 'on' if request.query_params.get('status') == 'malicious' }}" href="/scans?status=malicious">{{ icon('skull') }}Malicious</a>
+      <a class="{{ 'on' if request.query_params.get('status') == 'suspicious' }}" href="/scans?status=suspicious">{{ icon('alert') }}Suspicious</a>
+      <a class="{{ 'on' if request.query_params.get('status') == 'clean' }}" href="/scans?status=clean">{{ icon('check') }}Clean</a>
+    </nav>
+  </section>
+  <section class="group">
+    <div class="group-title">Ingest</div>
+    <nav class="nav" aria-label="Ingest">
+      {{ navlink('/sources', 'Sources', '/sources') }}
+    </nav>
+  </section>
+  <div class="who">
+    <div class="muted small">Reading from</div>
+    <div class="who-name mono small">{{ scans_label or '$LURETRACE_SCANS' }}</div>
+  </div>
+</aside>
+<main class="main" id="main">
+  {% block content %}{% endblock %}
+  <footer class="foot">luretrace detonates links in isolation and scores them. Verdicts are heuristic; an incomplete chain is not a clean one. Treat saved artifacts as live malicious content.</footer>
+</main>
+</div>
+</body>
+</html>

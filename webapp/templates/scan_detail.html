@@ -1,0 +1,77 @@
+{% extends "base.html" %}{% from "_macros.html" import icon, pill, verdict_pill with context %}
+{% block title %}Forensics {{ scan_id }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/scans">← Scans</a></p>
+<div class="page-head">
+  <div>
+    <h1>{{ verdict_pill(v.label) }} <span class="score-chip">score {{ v.score }}</span></h1>
+    <p class="lede tight mono">{{ v.original_url }}</p>
+    {% if v.url != v.original_url %}<p class="small muted">unwrapped → <span class="mono">{{ v.url }}</span></p>{% endif %}
+  </div>
+  <div class="head-meta small muted">
+    <div>{{ icon('clock',14) }} {{ v.started_at | ftime }}</div>
+    {% if v.message_id %}<div class="mono">{{ v.message_id }}</div>{% endif %}
+    <div>{{ 'chain followed to end' if v.complete else 'chain INCOMPLETE — unverified' }}</div>
+  </div>
+</div>
+
+{% if not v.complete %}<div class="banner-note warn-edge">{{ icon('alert',16) }} The chain could not be followed to a definitive end (gate, error, or hop limit). Absence of a phishing page here is not proof the link is safe.</div>{% endif %}
+
+<div class="grid g2">
+  <div class="card">
+    <div class="card-head"><h2>Why it scored</h2><span class="muted small">{{ v.signals|length }} signal(s)</span></div>
+    {% if v.signals %}
+    <ul class="signals">
+      {% for s in v.signals %}
+      <li>
+        <span class="sig-score t{{ 1 if s.score>=40 else (2 if s.score>=20 else 3) }}">+{{ s.score }}</span>
+        <div><div class="sig-name mono">{{ s.name }}{% if s.hop is not none %} <span class="muted">· hop {{ s.hop }}</span>{% endif %}</div>
+        <div class="small">{{ s.detail }}</div></div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">No signals fired.</p>{% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Artifacts</h2></div>
+    <p class="small muted">Captured HTML and the HAR are live hostile content — they download, they do not open in the browser.</p>
+    <div class="artifact-links">
+      {% if 'report.json' in artifacts %}<a class="btn small-btn" href="/scans/{{ scan_id }}/artifact/report.json">{{ icon('download',15) }}report.json</a>{% endif %}
+      {% if 'chain.har' in artifacts %}<a class="btn small-btn" href="/scans/{{ scan_id }}/artifact/chain.har">{{ icon('download',15) }}chain.har</a>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>Chain — {{ v.hops|length }} hop(s)</h2></div>
+  <div class="chain">
+    {% for h in v.hops %}
+    <div class="hop {{ 'hop-cred' if h.has_password_field or h.has_email_field }}">
+      <div class="hop-rail"><span class="hop-no">{{ h.index }}</span>{% if not loop.last %}<span class="hop-line"></span>{% endif %}</div>
+      <div class="hop-body">
+        <div class="hop-head">
+          {% if h.followed_link_text %}<span class="pill tiny acc">clicked “{{ h.followed_link_text }}”</span>{% endif %}
+          {% if h.status %}<span class="pill tiny neutral">HTTP {{ h.status }}</span>{% endif %}
+          {% if h.has_password_field %}<span class="pill tiny bad">password field</span>{% endif %}
+          {% if h.has_email_field and not h.has_password_field %}<span class="pill tiny warn">email field</span>{% endif %}
+          {% if h.captcha %}<span class="pill tiny warn">{{ h.captcha }}</span>{% endif %}
+          {% if h.blocked_requests %}<span class="pill tiny bad">internal-addr probe</span>{% endif %}
+        </div>
+        <div class="hop-url mono small">{{ h.final_url or h.requested_url }}</div>
+        {% if h.title %}<div class="small muted">{{ h.title }}</div>{% endif %}
+        {% if h.redirects %}<div class="small muted">redirects: {% for r in h.redirects %}<span class="mono">{{ r }}</span>{% if not loop.last %} → {% endif %}{% endfor %}</div>{% endif %}
+        {% if h.form_actions %}<div class="small muted">form posts to: {% for a in h.form_actions %}<span class="mono">{{ a }}</span>{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+        {% if h.downloads %}<div class="small">downloads: {% for d in h.downloads %}<span class="mono">{{ d.filename }}</span> <span class="muted">sha256 {{ d.sha256 or '—' }}</span>{% if not loop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+        {% if h.resource_hosts %}<details class="hosts"><summary class="small muted">{{ h.resource_hosts|length }} resource host(s)</summary><div class="small mono hosts-list">{{ h.resource_hosts|join(', ') }}</div></details>{% endif %}
+        {% set shot = 'hop_' ~ h.index ~ '.png' %}
+        {% if shot in artifacts %}
+        <a class="shot" href="/scans/{{ scan_id }}/artifact/{{ shot }}" target="_blank" rel="noopener"><img loading="lazy" src="/scans/{{ scan_id }}/artifact/{{ shot }}" alt="screenshot of hop {{ h.index }}"></a>
+        {% endif %}
+        {% if h.error %}<div class="small danger-text">error: {{ h.error }}</div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% from "_macros.html" import icon, verdict_pill with context %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Dashboard</h1><p class="lede tight">Links detonated in isolation and scored for adversary-in-the-middle credential phishing.</p></div></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="kpi-label">Scanned</div><div class="kpi-num">{{ stats.scanned }}</div></div>
+  <a class="kpi tap bad-edge" href="/scans?status=malicious"><div class="kpi-label">Malicious</div><div class="kpi-num t1">{{ stats.malicious }}</div></a>
+  <a class="kpi tap warn-edge" href="/scans?status=suspicious"><div class="kpi-label">Suspicious</div><div class="kpi-num t2">{{ stats.suspicious }}</div></a>
+  <a class="kpi tap ok-edge" href="/scans?status=clean"><div class="kpi-label">Clean</div><div class="kpi-num t4">{{ stats.passed }}</div></a>
+  <div class="kpi"><div class="kpi-label">Fail rate</div><div class="kpi-num">{{ stats.fail_rate }}%</div></div>
+</div>
+
+{% if stats.incomplete %}<div class="banner-note">{{ icon('alert',16) }} {{ stats.incomplete }} scan(s) could not be followed to the end of the chain — treated as unverified, not clean.</div>{% endif %}
+
+<div class="card">
+  <div class="card-head"><h2>Needs analysis</h2><a class="btn small-btn" href="/scans?status=malicious">Open queue {{ icon('arrow',15) }}</a></div>
+  {% if fails %}
+  <table class="tbl">
+    <thead><tr><th>Verdict</th><th>Score</th><th>Destination</th><th>Signals</th><th>When</th><th></th></tr></thead>
+    <tbody>
+    {% for r in fails %}
+      <tr>
+        <td>{{ verdict_pill(r.label) }}{% if not r.complete %} <span class="pill tiny neutral">incomplete</span>{% endif %}</td>
+        <td class="mono">{{ r.score }}</td>
+        <td class="trunc"><span class="mono small">{{ r.final_url or r.url }}</span></td>
+        <td>{{ r.signals }}</td>
+        <td class="small muted nowrap">{{ r.started_at | ftime }}</td>
+        <td class="right"><a class="btn small-btn" href="/scans/{{ r.id }}">Forensics</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No failed links yet.</p>{% endif %}
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>Recent scans</h2><a class="btn small-btn" href="/scans">All scans {{ icon('arrow',15) }}</a></div>
+  {% if recent %}
+  <table class="tbl">
+    <thead><tr><th>Verdict</th><th>Link</th><th>Hops</th><th>When</th><th></th></tr></thead>
+    <tbody>
+    {% for r in recent %}
+      <tr>
+        <td>{{ verdict_pill(r.label) }}</td>
+        <td class="trunc"><span class="mono small">{{ r.url }}</span></td>
+        <td>{{ r.hops }}</td>
+        <td class="small muted nowrap">{{ r.started_at | ftime }}</td>
+        <td class="right"><a class="linkbtn" href="/scans/{{ r.id }}">Open</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">Nothing scanned yet. Point <span class="mono">LURETRACE_SCANS</span> at your scans directory, or run <span class="mono">luretrace url …</span>.</p>{% endif %}
+</div>
+{% endblock %}

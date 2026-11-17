@@ -43,6 +43,21 @@ luretrace -c config.yaml rescan       # re-detonate queued links (run on a cron)
 
 Exit code is `0` clean, `1` suspicious, `2` malicious, so it drops into scripts and SOAR steps.
 
+## Web console
+
+A read-only forensics GUI for analysts: a dashboard, a scan list with pass/fail, and a
+full hop-by-hop forensics page for every failed link (signals, redirects, credential-form
+flags, screenshots, downloadable report/HAR). Ingest connectors (Mimecast, data lake / SIEM)
+feed links in from where your org already keeps them.
+
+```bash
+pip install -e ".[web]"
+export LURETRACE_SCANS=./scans
+uvicorn webapp.server:app --port 8099
+```
+
+See `webapp/README.md`.
+
 Docker:
 
 ```bash

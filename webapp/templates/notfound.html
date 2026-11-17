@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Not found{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Scan not found</h1><p class="lede tight">No scan with id <span class="mono">{{ scan_id }}</span> under the configured scans directory.</p></div></div>
+<div class="card"><p class="muted">It may have aged out, or <span class="mono">LURETRACE_SCANS</span> points elsewhere. <a class="linkbtn" href="/scans">Back to scans</a>.</p></div>
+{% endblock %}

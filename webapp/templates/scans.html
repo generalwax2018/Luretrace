@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% from "_macros.html" import icon, verdict_pill with context %}
+{% block title %}Scans{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Scans</h1><p class="lede tight">{{ rows|length }} link(s){% if status != 'all' %} · filtered to {{ status }}{% endif %}.</p></div>
+</div>
+
+<div class="segmented filterbar">
+  <a class="{{ 'on' if status == 'all' }}" href="/scans">All <span class="count">{{ counts.scanned }}</span></a>
+  <a class="{{ 'on' if status == 'malicious' }}" href="/scans?status=malicious">Malicious <span class="count">{{ counts.malicious }}</span></a>
+  <a class="{{ 'on' if status == 'suspicious' }}" href="/scans?status=suspicious">Suspicious <span class="count">{{ counts.suspicious }}</span></a>
+  <a class="{{ 'on' if status == 'clean' }}" href="/scans?status=clean">Clean <span class="count">{{ counts.passed }}</span></a>
+  <a class="{{ 'on' if status == 'skipped' }}" href="/scans?status=skipped">Skipped <span class="count">{{ counts.skipped }}</span></a>
+</div>
+
+<div class="card">
+  {% if rows %}
+  <table class="tbl">
+    <thead><tr><th>Verdict</th><th>Score</th><th>Original link</th><th>Final destination</th><th>Hops</th><th>When</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="{{ 'row-fail' if r.label in ('malicious','suspicious') }}">
+        <td>{{ verdict_pill(r.label) }}{% if not r.complete %} <span class="pill tiny neutral">incomplete</span>{% endif %}</td>
+        <td class="mono">{{ r.score }}</td>
+        <td class="trunc"><span class="mono small">{{ r.original_url or r.url }}</span></td>
+        <td class="trunc"><span class="mono small">{{ r.final_url or '—' }}</span></td>
+        <td>{{ r.hops }}</td>
+        <td class="small muted nowrap">{{ r.started_at | ftime }}</td>
+        <td class="right"><a class="btn small-btn" href="/scans/{{ r.id }}">{{ 'Forensics' if r.label in ('malicious','suspicious') else 'Open' }}</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No scans match this filter.</p>{% endif %}
+</div>
+{% endblock %}

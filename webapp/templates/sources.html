@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% from "_macros.html" import icon with context %}
+{% block title %}Sources{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Ingest sources</h1><p class="lede tight">Where the links come from. Configure connectors in your deployment; the console shows the verdicts regardless of source.</p></div></div>
+
+<div class="grid g2">
+  <div class="card">
+    <div class="card-head"><h2>{{ icon('inbox',18) }} Mimecast</h2></div>
+    <p class="small">Pulls clicked/scanned URL logs from Mimecast API 2.0 (OAuth2) and queues their targets. The gateway's own scan result is carried through, so a link Mimecast passed that luretrace fails is easy to spot.</p>
+    <p class="small muted mono">connector: mimecast · POST /api/ttp/url/get-logs</p>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>{{ icon('grid',18) }} Data lake / SIEM</h2></div>
+    <p class="small">Runs a query against an OAuth2-protected endpoint (Snowflake, Databricks SQL, Azure Data Explorer, Elastic, or a custom gateway) and maps result fields to URLs. Vendor-neutral: configure the query and a field map, no code.</p>
+    <p class="small muted mono">connector: datalake · OAuth2 client-credentials</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>How a link becomes a verdict</h2></div>
+  <ol class="flow">
+    <li><b>Ingest</b> — a connector yields the URL (plus recipient, message id, and the gateway's own verdict).</li>
+    <li><b>Unwrap</b> — Safe Links / Proofpoint / Mimecast rewrites are decoded to the real destination.</li>
+    <li><b>Detonate</b> — the link is opened in an isolated browser and the lure chain is followed to its end.</li>
+    <li><b>Score</b> — a branded sign-in page on a domain the brand doesn't own is the headline signal.</li>
+    <li><b>Review</b> — passed links are logged; failed links land in the queue with full forensics.</li>
+  </ol>
+  <p class="small muted">Connectors authenticate with OAuth2 client-credentials and are configured in the deployment, not here. See <span class="mono">webapp/ingest.py</span> and <span class="mono">docs/deployment.md</span>.</p>
+</div>
+{% endblock %}
