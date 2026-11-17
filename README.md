@@ -13,6 +13,10 @@ further in. luretrace makes that click.
 email -> extract links -> unwrap gateway rewrites -> triage -> detonate + follow -> score -> webhook
 ```
 
+The full picture — detect, trace, contain, and prevent at click time, with the identity-layer
+backstop — is in [`docs/architecture.md`](docs/architecture.md) (every external box is a role, not
+a product, so it stays vendor-neutral).
+
 ## What it does
 
 - **Extracts** links from `.eml` bodies and HTML parts, and refangs `hxxp://` / `[.]` forms.
