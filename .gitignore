@@ -1,0 +1,9 @@
+config.yaml
+scans/
+pcap/
+iocs/
+rescan-queue.json
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/

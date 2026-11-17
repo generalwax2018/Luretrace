@@ -1,0 +1,31 @@
+# Run on a host in an isolated network segment with its own internet egress.
+# The scanner opens hostile pages on purpose: it must not be able to route to
+# corporate or cloud-metadata addresses. Enforce that at the firewall as well.
+services:
+  scanner:
+    build: .
+    command: ["-c", "/config/config.yaml", "watch"]
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - ./scans:/scans
+    environment:
+      - PYTHONUNBUFFERED=1
+    read_only: true
+    tmpfs: ["/tmp", "/home/scanner"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    shm_size: 1gb
+    restart: unless-stopped
+
+  # Optional full packet capture of everything the scanner does:
+  #   docker compose --profile pcap up
+  # The HAR written per scan already holds decrypted requests and responses;
+  # the pcap adds DNS and non-HTTP traffic.
+  pcap:
+    profiles: ["pcap"]
+    image: nicolaka/netshoot
+    network_mode: "service:scanner"
+    cap_add: ["NET_ADMIN", "NET_RAW"]
+    command: ["tcpdump", "-i", "any", "-w", "/pcap/luretrace-%Y%m%d-%H.pcap", "-G", "3600", "-Z", "root"]
+    volumes:
+      - ./pcap:/pcap

@@ -1,0 +1,75 @@
+# luretrace configuration. Copy to config.yaml and edit. Keep secrets out of git.
+output_dir: ./scans
+
+# --- Detonation ---
+max_hops: 5
+nav_timeout_ms: 30000
+settle_timeout_ms: 8000
+locale: en-US
+timezone: America/New_York
+# Send browser traffic out through a dedicated egress proxy (recommended).
+# proxy: http://egress-proxy.example:8080
+
+# --- Triage ---
+# Never detonated (your own tenant, your phishing-simulation vendor, one-click action links).
+allowlist_domains:
+  - yourcompany.com
+  - yourtenant.sharepoint.com
+# Your real sign-in pages, so they are not flagged as look-alikes.
+trusted_login_domains:
+  - sso.yourcompany.com
+
+# --- Scoring ---
+malicious_threshold: 70
+suspicious_threshold: 30
+
+# --- Link unwrapping ---
+# Safe Links and Proofpoint URL Defense are decoded offline.
+# Mimecast links can only be decoded through the Mimecast API (API 2.0 application).
+# mimecast:
+#   client_id: "..."
+#   client_secret: "..."
+
+# --- Mail source for `luretrace watch` (pick one) ---
+# imap:
+#   host: imap.example.com
+#   username: linkscan@yourcompany.com
+#   password: "..."
+#   folder: INBOX
+# graph:
+#   tenant_id: "..."
+#   client_id: "..."
+#   client_secret: "..."
+#   mailbox: linkscan@yourcompany.com
+poll_seconds: 60
+
+# --- Actions ---
+# Any JSON webhook: ServiceNow scripted REST, Sentinel/Logic App, Slack workflow, SOAR.
+# webhook_url: https://example.service-now.com/api/x/luretrace
+# webhook_headers:
+#   Authorization: "Bearer ..."
+notify_on: [suspicious, malicious]
+# Write an IOC file (phishing domain, URLs, hashes) per suspicious/malicious verdict.
+# ioc_dir: ./iocs
+
+# --- Rescan (catch links armed after delivery) ---
+# Re-detonate each scanned link at these minute offsets; run `luretrace rescan` on a cron.
+rescan_offsets_minutes: [15, 60, 240]
+rescan_queue: ./rescan-queue.json
+
+# --- Login-page beacon (`luretrace beacon`) ---
+# Detects AiTM proxying of your own sign-in page. Paste the printed CSS into Entra branding.
+# beacon:
+#   listen_host: 0.0.0.0
+#   listen_port: 8088
+#   public_url: https://beacon.yourcompany.com
+#   trusted_login_hosts: [login.microsoftonline.com, login.live.com]
+#   webhook_url: https://example.service-now.com/api/x/luretrace-beacon
+
+# --- Honeytoken (opt-in, fires only on malicious verdicts) ---
+# Create the canary as a disabled/monitored account in your tenant first. You are
+# responsible for authorisation and legal compliance. Off by default.
+# honeytoken:
+#   enabled: false
+#   username: svc-reports-canary@yourcompany.com
+#   password: "..."
