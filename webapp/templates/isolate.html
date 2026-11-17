@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Opening safely · {{ app_name }}</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+</head>
+<body class="interstitial">
+<main class="gate-card card">
+  <div class="gate-mark warn">!</div>
+  <h1>Checking this link</h1>
+  <p class="lede">luretrace hasn't confirmed this link is safe yet{% if d.reason == 'suspicious_verdict' %}, and what it saw looks suspicious{% endif %}. To protect your account, enter credentials only once the security team has cleared it.</p>
+  <div class="gate-detail">
+    <div><span class="muted small">Destination</span><div class="mono small">{{ d.url }}</div></div>
+    <div><span class="muted small">Status</span><div class="small">{{ d.reason|replace('_',' ') }}{% if d.label %} · {{ d.label }}{% endif %}</div></div>
+  </div>
+  <p class="small muted">No remote isolation browser is configured for this gate, so the page was not opened automatically. If you need this link, report it to the security team for a fast review.</p>
+</main>
+</body>
+</html>

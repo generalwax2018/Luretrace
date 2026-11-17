@@ -58,6 +58,23 @@ uvicorn webapp.server:app --port 8099
 
 See `webapp/README.md`.
 
+## Click-time gate (inline)
+
+An optional enforcement layer that moves the check to the moment of the click: the navigation is
+held, luretrace's verdict is consulted, and the click is allowed, blocked, or sent to isolation —
+before any credential is entered. Phishing-simulation clicks pass straight through, so training
+exercises are never blocked. It never detonates in the hot path (it reads a verdict cache the
+pre-scan fills), and an unknown link fails safe to isolation.
+
+```bash
+export LURETRACE_SCANS=./scans
+uvicorn webapp.gate:gate_app --port 8090
+# POST /check {"url":"..."} -> allow|block|isolate ; GET /go?u=<link> -> redirect/block/isolate
+```
+
+It's enforcement-agnostic — the same decision drives a Netskope inline + RBI policy, a link-rewrite
+service, or a managed browser extension. See `docs/inline-agent.md`.
+
 Docker:
 
 ```bash

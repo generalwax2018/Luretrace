@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Link blocked · {{ app_name }}</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+</head>
+<body class="interstitial">
+<main class="gate-card card">
+  <div class="gate-mark bad">✕</div>
+  <h1>This link was blocked</h1>
+  <p class="lede">luretrace detonated this link and found a credential-phishing page. It was not opened in your browser, to protect your account.</p>
+  <div class="gate-detail">
+    <div><span class="muted small">Destination</span><div class="mono small">{{ d.url }}</div></div>
+    {% if d.reason %}<div><span class="muted small">Reason</span><div class="small">{{ d.reason|replace('_',' ') }}{% if d.score is not none %} · score {{ d.score }}{% endif %}</div></div>{% endif %}
+  </div>
+  <p class="small muted">If you believe this is a mistake, report it to the security team with the destination above. Do not enter your password anywhere this link leads.</p>
+</main>
+</body>
+</html>

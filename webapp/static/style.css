@@ -208,6 +208,17 @@ h2 { margin: 0; font-weight: 600; font-size: 16px; letter-spacing: -.015em; disp
   box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 4px 14px color-mix(in srgb, var(--blue) 35%, transparent); }
 .btn.primary:hover { filter: brightness(1.08); }
 
+/* click-time interstitials (standalone pages) */
+body.interstitial { display: grid; place-items: center; min-height: 100vh; padding: 24px; }
+.gate-card { max-width: 480px; width: 100%; text-align: center; align-items: center; padding: 28px 28px 24px; gap: 14px; }
+.gate-card h1 { font-size: 22px; justify-content: center; }
+.gate-card .lede { margin: 0 auto; }
+.gate-mark { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 26px; font-weight: 700; color: #fff; }
+.gate-mark.bad { background: linear-gradient(160deg, #ff6b70, var(--t1)); }
+.gate-mark.warn { background: linear-gradient(160deg, #ffc266, var(--t2)); }
+.gate-detail { display: grid; gap: 8px; width: 100%; text-align: left; background: var(--glass-soft); border-radius: 12px; padding: 12px 14px; }
+.gate-detail .mono { overflow-wrap: anywhere; }
+
 /* flow list on sources */
 .flow { margin: 0; padding-left: 18px; display: grid; gap: 7px; font-size: 13px; }
 ol.flow li { padding-left: 4px; }
