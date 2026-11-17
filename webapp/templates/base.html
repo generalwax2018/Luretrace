@@ -22,6 +22,7 @@
     <nav class="segmented" aria-label="Views">
       {{ navlink('/', 'Dashboard', none) }}
       {{ navlink('/scans', 'Scans', '/scans') }}
+      {{ navlink('/submit', 'Submit', '/submit') }}
       {{ navlink('/sources', 'Sources', '/sources') }}
     </nav>
     <div class="topbar-end"><span class="muted small">read-only console</span></div>
@@ -41,6 +42,7 @@
   <section class="group">
     <div class="group-title">Ingest</div>
     <nav class="nav" aria-label="Ingest">
+      <a class="{{ 'on' if path.startswith('/submit') }}" href="/submit">{{ icon('hook') }}Submit a link</a>
       {{ navlink('/sources', 'Sources', '/sources') }}
     </nav>
   </section>

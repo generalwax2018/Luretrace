@@ -197,6 +197,17 @@ h2 { margin: 0; font-weight: 600; font-size: 16px; letter-spacing: -.015em; disp
 .shot { display: block; margin-top: 6px; max-width: 420px; border-radius: 10px; overflow: hidden; border: 1px solid var(--separator-strong); }
 .shot img { display: block; width: 100%; height: auto; }
 
+/* forms */
+.card.stack { gap: 10px; }
+.fld { display: grid; gap: 5px; font-size: 13px; font-weight: 500; }
+.fld input { height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--separator-strong); background: var(--glass-soft); font-weight: 400; }
+.fld input[type=file] { padding: 7px 10px; height: auto; }
+.fld input:focus { border-color: var(--blue); }
+.actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 2px; }
+.btn.primary { background: linear-gradient(180deg, var(--blue-2), var(--blue)); color: #fff; border-color: transparent; font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 4px 14px color-mix(in srgb, var(--blue) 35%, transparent); }
+.btn.primary:hover { filter: brightness(1.08); }
+
 /* flow list on sources */
 .flow { margin: 0; padding-left: 18px; display: grid; gap: 7px; font-size: 13px; }
 ol.flow li { padding-left: 4px; }

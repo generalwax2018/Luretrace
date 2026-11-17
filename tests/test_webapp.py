@@ -113,3 +113,21 @@ def test_sources_and_health(client):
 def test_missing_scan(client):
     r = client.get("/scans/nope")
     assert r.status_code == 200 and "not found" in r.text.lower()
+
+
+def test_submit_form(client):
+    r = client.get("/submit")
+    assert r.status_code == 200 and "Submit a link" in r.text
+
+
+def test_submit_private_url_is_skipped_without_browser(client):
+    # A non-public target is skipped before any browser launches, so this is hermetic.
+    r = client.post("/submit", data={"url": "http://10.0.0.1/secret"})
+    assert r.status_code == 200
+    assert "No detonation" in r.text or "skipped" in r.text.lower()
+
+
+def test_submit_empty_shows_error(client):
+    r = client.post("/submit", data={"url": ""})
+    assert r.status_code == 200
+    assert "enter a URL" in r.text or "enter a url" in r.text.lower()

@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% from "_macros.html" import icon with context %}
+{% block title %}Submit{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Submit a link</h1><p class="lede tight">Detonate a URL or a reported email on demand. The chain is followed in isolation and lands in the scans list with full forensics.</p></div></div>
+
+{% if error %}<div class="banner-note warn-edge">{{ icon('alert',16) }} {{ error }}</div>{% endif %}
+{% if note %}<div class="banner-note">{{ icon('check',16) }} {{ note }}</div>{% endif %}
+
+<div class="grid g2">
+  <form class="card stack" method="post" action="/submit">
+    <div class="card-head"><h2>{{ icon('link',18) }} A URL</h2></div>
+    <label class="fld">Link to detonate
+      <input type="url" name="url" placeholder="https://…" required autofocus>
+    </label>
+    <p class="small muted">Gateway-rewritten links (Safe Links, Proofpoint, Mimecast) are unwrapped first.</p>
+    <div class="actions"><button class="btn primary">{{ icon('hook',15) }} Detonate</button></div>
+  </form>
+
+  <form class="card stack" method="post" action="/submit" enctype="multipart/form-data">
+    <div class="card-head"><h2>{{ icon('inbox',18) }} A reported email</h2></div>
+    <label class="fld">.eml file
+      <input type="file" name="eml" accept=".eml,message/rfc822">
+    </label>
+    <p class="small muted">Every link in the message is extracted, unwrapped, and detonated.</p>
+    <div class="actions"><button class="btn primary">{{ icon('hook',15) }} Scan email</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <p class="small muted">Detonation opens live, potentially hostile pages from this host. Run the console where that egress is safe (see <span class="mono">docs/deployment.md</span>). Private, internal, and allowlisted links are skipped, not detonated.</p>
+</div>
+{% endblock %}

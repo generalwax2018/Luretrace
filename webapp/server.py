@@ -8,12 +8,25 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import store
+
+
+def _build_cfg():
+    """A Config for on-demand scans from the console, driven by the same env the console reads."""
+    import os
+
+    from luretrace.config import Config
+    return Config(
+        output_dir=str(store.scans_dir()),
+        proxy=os.environ.get("LURETRACE_PROXY"),
+        allowlist_domains=[d for d in os.environ.get("LURETRACE_ALLOWLIST", "").split(",") if d],
+        trusted_login_domains=[d for d in os.environ.get("LURETRACE_TRUSTED_LOGIN", "").split(",") if d],
+    )
 
 BASE = Path(__file__).parent
 app = FastAPI(title="luretrace", docs_url=None, redoc_url=None)
@@ -64,6 +77,40 @@ def scan_detail(request: Request, scan_id: str):
 @app.get("/sources", response_class=HTMLResponse)
 def sources(request: Request):
     return render(request, "sources.html")
+
+
+@app.get("/submit", response_class=HTMLResponse)
+def submit_form(request: Request, error: str = "", note: str = ""):
+    return render(request, "submit.html", error=error, note=note)
+
+
+@app.post("/submit")
+async def submit(request: Request, url: str = Form(""), eml: UploadFile | None = File(None)):
+    url = (url or "").strip()
+    try:
+        from luretrace.pipeline import scan_message, scan_url
+    except Exception:
+        return RedirectResponse("/submit?error=engine+not+installed+on+this+host", status_code=303)
+
+    cfg = _build_cfg()
+    try:
+        if eml is not None and eml.filename:
+            verdicts = await scan_message(await eml.read(), cfg)
+        elif url:
+            verdicts = [await scan_url(url, cfg)]
+        else:
+            return RedirectResponse("/submit?error=enter+a+URL+or+choose+a+.eml+file", status_code=303)
+    except Exception as exc:  # e.g. no browser installed on this host
+        msg = str(exc).splitlines()[0][:160].replace(" ", "+")
+        return RedirectResponse(f"/submit?error=scan+failed:+{msg}", status_code=303)
+
+    scanned = [v for v in verdicts if v.artifacts_dir]
+    if scanned:
+        from pathlib import Path
+        return RedirectResponse(f"/scans/{Path(scanned[0].artifacts_dir).name}", status_code=303)
+    labels = ", ".join(sorted({v.label for v in verdicts})) or "nothing"
+    return RedirectResponse(f"/submit?note=No+detonation+({labels}).+Private+or+allowlisted+links+are+skipped.",
+                            status_code=303)
 
 
 @app.get("/scans/{scan_id}/artifact/{name}")
