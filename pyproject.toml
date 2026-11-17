@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "luretrace"
-version = "0.1.0"
+version = "0.1.0b1"
 description = "Follow emailed links to the end of the lure chain and flag credential-phishing (AiTM) pages"
 readme = "README.md"
 license = { text = "MIT" }

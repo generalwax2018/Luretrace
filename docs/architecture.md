@@ -1,5 +1,8 @@
 # Architecture
 
+> **Beta (`0.1.0b1`), not production-validated.** The design below is implemented and unit-tested;
+> real-world efficacy is still unproven. Pilot in a lab.
+
 luretrace is four stages plus a backstop. Everything outside the dashed "luretrace" boundary is a
 **role, not a product** — an enforcement point, an email gateway, a data lake, a remote browser,
 an identity provider. Any vendor that fills the role works; swap them freely.

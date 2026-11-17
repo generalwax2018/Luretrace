@@ -1,5 +1,8 @@
 # Click-time gate: testing a link before the user reaches it
 
+> **Beta (`0.1.0b1`), not production-validated.** The gate's decision logic is unit-tested, but the
+> enforcement integrations below have not been run end-to-end against live systems. Pilot in a lab.
+
 The post-delivery scanner catches phishing after mail lands. The **gate** moves the check to the
 moment of the click: the user's navigation is held, luretrace's verdict is consulted, and the
 click is allowed, blocked, or sent to isolation — before any credential is typed. It also passes

@@ -9,6 +9,15 @@ Most gateways scan the link in the email. In a typical AiTM attack that link is 
 SharePoint, OneDrive or Dropbox page, and it scans clean. The phishing page is one click
 further in. luretrace makes that click.
 
+> **Status: Beta (`0.1.0b1`) — not production-validated.** This is a beta release: the features
+> are built and unit-tested, but expect bugs and changing APIs, and it will stay in beta until it
+> has been validated against real phishing samples. The tests are unit-level and the
+> end-to-end test uses a local fake lure; the detonation worker has **not** been evaluated against
+> real phishing, and the Microsoft Graph, Mimecast, data-lake, and click-time gate paths have
+> **not** been run against a live tenant. Treat verdicts as heuristic, validate in a lab before
+> you rely on it, and read [Safety](#safety-read-before-running) first. This software detonates
+> live hostile content and ships opt-in deception features ([honeytoken](#honeytoken-off-by-default)).
+
 ```
 email -> extract links -> unwrap gateway rewrites -> triage -> detonate + follow -> score -> webhook
 ```
@@ -130,7 +139,18 @@ This tool visits hostile pages on purpose.
   scanner a decoy. That is why incomplete chains are never marked clean.
 - **Treat artifacts as hostile.** Saved HTML and downloads are live malicious content.
 
-## Limits in 0.1
+## Honeytoken (off by default)
+
+luretrace can submit a pre-seeded **fake** account to a page it has already judged malicious, so
+any later use of that canary exposes the attacker's replay infrastructure. This is active
+deception and it is **disabled by default and intentionally undocumented in config beyond this
+note.** Before enabling it you are responsible for: creating the canary as a disabled, monitored
+identity in your own tenant; authorisation to run active deception; and compliance with local law
+and the destination's terms. It only ever fires on a verdict already labelled `malicious` and only
+submits the one configured canary. If any of that is unclear, leave it off — every other part of
+luretrace works without it.
+
+## Limits in this beta
 
 - Links drawn inside a PDF or image viewer (not real anchors) are not followed.
 - No CAPTCHA solving; a gate ends the chain as `suspicious`.

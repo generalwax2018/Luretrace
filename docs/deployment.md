@@ -4,9 +4,9 @@ This is a reference architecture for running luretrace as a production SOC servi
 Microsoft 365 for mail and Azure for hosting; the shape maps cleanly onto AWS or GCP. luretrace
 opens live phishing pages on purpose, so isolation is the first requirement, not an afterthought.
 
-> Status: luretrace is early. Treat the first rollout as a pilot. The Microsoft Graph and
-> Mimecast integrations are written to vendor docs and must be validated against a test tenant
-> before production.
+> Status: **beta** (`0.1.0b1`), not production-validated. Treat the first rollout as a lab pilot,
+> not a production deployment. The Microsoft Graph and Mimecast integrations are written to vendor
+> docs and must be validated against a test tenant first.
 
 ## 1. Network isolation (non-negotiable)
 

@@ -1,5 +1,7 @@
 # luretrace web console
 
+> **Beta (`0.1.0b1`), not production-validated.** Run it in a lab; keep it behind your SSO.
+
 A read-only forensics console over the scan output. It reads the `report.json` files the
 engine writes (one per scan directory) — no database — and presents them for a SOC analyst:
 
