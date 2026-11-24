@@ -1,6 +1,6 @@
 """Click-time decision engine: given a URL, return allow / block / isolate / scan, fast.
 
-This is enforcement-agnostic. A Netskope inline policy, a redirect/interstitial service, or a
+This is enforcement-agnostic. An inline web-gateway policy, a redirect/interstitial service, or a
 managed browser extension all make the same call and act on the same decision. The engine itself
 holds no browser and never blocks on a detonation — it answers from a verdict cache that the
 pre-scan (delivery-time) pipeline fills. An unknown link fails SAFE (isolate), not open.

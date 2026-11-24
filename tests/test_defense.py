@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from luretrace.actions import export_iocs, netskope_url_list, write_blocklist, write_iocs
+from luretrace.actions import blocklist_domains, export_iocs, write_blocklist, write_iocs
 from luretrace.beacon import classify_hit, css_snippet
 from luretrace.honeytoken import generate_canary, should_submit
 from luretrace.models import Hop, Verdict
@@ -93,7 +93,7 @@ def test_blocklist_only_malicious(tmp_path):
     clean = Verdict(url="https://ok.example/", original_url="https://ok.example/",
                     label="clean", score=0, complete=True,
                     hops=[Hop(0, "https://ok.example/", final_url="https://ok.example/")])
-    assert netskope_url_list([mal, clean], ["sharepoint.com"]) == ["evil.com"]
+    assert blocklist_domains([mal, clean], ["sharepoint.com"]) == ["evil.com"]
     path = tmp_path / "block.txt"
     assert write_blocklist([mal, clean], str(path), ["sharepoint.com"]) == 1
     assert path.read_text().strip() == "evil.com"

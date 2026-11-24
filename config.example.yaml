@@ -78,7 +78,7 @@ webhook_retries: 3
 notify_on: [suspicious, malicious]
 # Write an IOC file (phishing domain, URLs, hashes) per suspicious/malicious verdict.
 # ioc_dir: ./iocs
-# Append each malicious verdict's blockable domains here (push it to Netskope / the gateway).
+# Append each malicious verdict's blockable domains here (load it into your web/mail gateway).
 # blocklist_path: ./blocklist.txt
 # Soft-delete a malicious message from its recipients' mailboxes (needs the graph block).
 purge_on_malicious: false

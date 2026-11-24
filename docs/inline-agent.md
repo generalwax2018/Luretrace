@@ -73,22 +73,23 @@ uvicorn webapp.gate:gate_app --port 8090
 
 Keep the gate on an internal address, reachable by the enforcement point only.
 
-### 1. Netskope inline + RBI (recommended for your stack)
-Netskope is already in the click path. Two ways to use the gate:
-- **Verdict feed (simplest):** the pre-scan pushes malicious domains to a Netskope custom URL
-  category (the existing IOC export), and a Real-Time Protection policy **blocks** that category
-  and **isolates** an "unverified/newly-seen" category. The gate's cache is the source of truth
-  for what lands in each category.
-- **Decision call (tightest):** where your deployment supports calling an external service on a
-  request, call `POST /check` and map `block`→block, `isolate`→Netskope RBI, `allow`→allow.
-  Netskope's own Remote Browser Isolation is the isolation target; set `LURETRACE_ISOLATION_URL`
-  or route the category to RBI in policy.
+### 1. Inline web gateway / SSE + RBI
+Use this when a secure web gateway or SSE proxy is already in the click path. Two ways to use the
+gate:
+- **Verdict feed (simplest):** the pre-scan pushes malicious domains to a custom URL category or
+  blocklist on the gateway (the existing IOC export), and an inline policy **blocks** that
+  category and **isolates** an "unverified/newly-seen" category. The gate's cache is the source of
+  truth for what lands in each category.
+- **Decision call (tightest):** where your gateway supports calling an external service on a
+  request, call `POST /check` and map `block`→block, `isolate`→RBI, `allow`→allow. If the gateway
+  has its own Remote Browser Isolation, make that the isolation target; otherwise set
+  `LURETRACE_ISOLATION_URL` or route the category to RBI in policy.
 
 ### 2. Link-rewrite / redirect service
-Rewrite links in inbound mail to `https://gate.yourco.com/go?u=<original>` (the way Safe Links and
-Mimecast rewrite). On click, `/go` consults the verdict and redirects, blocks, or isolates. Note
-this overlaps with Safe Links/Mimecast rewriting — run it as the second opinion, not a replacement,
-and mind double-rewrapping.
+Rewrite links in inbound mail to `https://gate.yourco.com/go?u=<original>` (the way mail-gateway
+link protection rewrites). On click, `/go` consults the verdict and redirects, blocks, or
+isolates. Note this overlaps with any link rewriting your mail gateway already does — run it as
+the second opinion, not a replacement, and mind double-rewrapping.
 
 ### 3. Managed browser extension
 An extension intercepts navigation (`webNavigation.onBeforeNavigate`), calls `POST /check` for

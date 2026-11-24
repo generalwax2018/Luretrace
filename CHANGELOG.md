@@ -77,6 +77,8 @@ changes between minor versions.
   runs ruff, and Dependabot watches pip, Actions and the Docker base image.
 
 ### Changed
+- The vendor-named blocklist helper is renamed `actions.blocklist_domains`; the docs describe
+  enforcement points by role (web gateway, DNS filter, mail gateway) instead of by vendor.
 - `proxy` must be an `http://` proxy when the guard is on. `playwright>=1.49`; the Docker image
   pins `playwright==1.49.0` to match its base image.
 

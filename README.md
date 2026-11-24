@@ -106,7 +106,7 @@ uvicorn webapp.gate:gate_app --port 8090
 # POST /check {"url":"..."} -> allow|block|isolate ; GET /go?u=<link> -> redirect/block/isolate
 ```
 
-It's enforcement-agnostic — the same decision drives a Netskope inline + RBI policy, a link-rewrite
+It's enforcement-agnostic — the same decision drives an inline web-gateway / RBI policy, a link-rewrite
 service, or a managed browser extension. See `docs/inline-agent.md`.
 
 Docker:
@@ -216,7 +216,7 @@ other half:
 - **Rescan** (`luretrace rescan`) — re-detonates links later, because a clean first scan is not
   durable: attackers arm links after delivery. A worsened verdict is flagged.
 - **IOC export + blocklist** — every malicious verdict yields the phishing domain, URLs and
-  hashes, ready to push to Netskope and the mail gateway.
+  hashes, ready to load into your web gateway, DNS filter and mail gateway.
 - **Honeytoken** (opt-in, malicious-only) — submits a pre-seeded fake account to a confirmed
   phishing page so any later use of it exposes the attacker's replay infrastructure. You seed
   and authorise the canary; it is off by default.
@@ -226,7 +226,8 @@ other half:
 - Certificate age (CT logs) and reputation lookups (domain age via RDAP is in)
 - Links inside Office attachments, and QR codes rendered inside PDFs
 - Visual brand matching (logo/favicon hash or a vision model) instead of text patterns
-- Direct API push of the blocklist to Netskope and Mimecast (today: a file you push)
+- Direct API push of the blocklist to web gateways, DNS filters and mail gateways (today: a file
+  you import)
 - A durable queue (Service Bus / Redis) behind the file inbox and the rescan queue
 - Hand-off of downloads to a malware sandbox (CAPEv2)
 

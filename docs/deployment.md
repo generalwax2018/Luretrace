@@ -16,7 +16,7 @@ corporate.
 - Run them in a dedicated VNet, ideally in their own Azure subscription, with **no peering** to
   corporate networks.
 - Egress through a NAT gateway with its own public IPs. Prefer egress IPs that resemble normal
-  user traffic (route through your Netskope egress or a residential-style proxy); datacenter IPs
+  user traffic (route through your web gateway's egress or a residential-style proxy); datacenter IPs
   are fingerprinted by kits, which then serve a decoy.
 - At the subnet NSG, in addition to the app's built-in guard:
   - Deny outbound to RFC1918 (10/8, 172.16/12, 192.168/16) and link-local 169.254.0.0/16
@@ -62,8 +62,8 @@ Scope the input narrowly first, widen later.
   `webhook_secret` and verify `X-Luretrace-Signature` (`sha256=` HMAC of the raw body) on the
   receiver; failed deliveries are retried with backoff (`webhook_retries`).
 - **Blocking:** `blocklist_path` appends each malicious verdict's domains to a one-per-line file
-  (or run `luretrace blocklist out.txt` over the scans on disk); push it to a Netskope custom URL
-  category and your mail gateway's blocked-URL list. Shared platforms (SharePoint, Dropbox,
+  (or run `luretrace blocklist out.txt` over the scans on disk); load it into your web gateway's
+  custom URL category or blocklist, your DNS filter, and your mail gateway's blocked-URL list. Shared platforms (SharePoint, Dropbox,
   `pages.dev`, a brand's own domains) are never blocked whole: only the exact host that served
   the credential form or download is listed, and never the file-share lure itself.
 - **Ingest:** `luretrace ingest` pulls links from the configured connector (`ingest: {kind:
@@ -103,7 +103,7 @@ Scope the input narrowly first, widen later.
    few weeks of real reports. Measure it: `luretrace eval labels.csv --out eval.json` reports
    precision, recall and false-positive rate over a labelled set (fresh phishing-feed links plus a
    benign corpus). Re-run it on every release and every tuning change.
-3. Enable automatic blocklist push to Netskope and the mail gateway.
+3. Enable automatic blocklist push to the web gateway and the mail gateway.
 4. Add the login-page beacon and the Sentinel detections.
 5. Only then weigh active response (Graph message purge, honeytoken) with sign-off.
 

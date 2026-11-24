@@ -55,7 +55,7 @@ SigninLogs
 ## D. Beacon alert enrichment
 When the luretrace login-page beacon reports `verdict=proxied`, the `origin_host` is the live
 phishing domain. Pipe it to a watchlist and join sign-ins against it, and push it to your
-Netskope custom URL blocklist via the `luretrace` IOC export.
+web gateway's custom URL blocklist via the `luretrace` IOC export.
 
 ## Automated response (Logic App / SOAR)
 On a confirmed hit from A, B, or the beacon:
@@ -63,4 +63,4 @@ On a confirmed hit from A, B, or the beacon:
 2. Disable the account or raise user risk to force remediation.
 3. Remove any device or MFA method registered inside the alert window.
 4. Hunt for inbox rules and new OAuth grants created in the same window.
-5. Block the phishing domain at Netskope and the mail gateway.
+5. Block the phishing domain at the web gateway and the mail gateway.

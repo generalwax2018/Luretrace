@@ -80,7 +80,7 @@ class Config:
     webhook_retries: int = 3
     notify_on: list[str] = field(default_factory=lambda: ["suspicious", "malicious"])
     ioc_dir: str | None = None  # write an IOC file per malicious/suspicious verdict
-    blocklist_path: str | None = None  # append malicious domains (one per line) for Netskope etc.
+    blocklist_path: str | None = None  # append malicious domains (one per line) for gateways/filters
     purge_on_malicious: bool = False  # soft-delete the message from recipients' mailboxes (Graph)
     # Rescan: links are often armed after delivery, so re-detonate at these offsets.
     rescan_auto: bool = True  # queue links from scanned mail; run `luretrace rescan` on a cron

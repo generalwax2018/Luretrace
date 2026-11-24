@@ -90,8 +90,8 @@ def write_iocs(verdict: Verdict, ioc_dir: str, allowlist=()) -> str | None:
     return str(path)
 
 
-def netskope_url_list(verdicts, allowlist=()) -> list[str]:
-    """Domains to push into a Netskope custom URL category / blocklist."""
+def blocklist_domains(verdicts, allowlist=()) -> list[str]:
+    """Domains to load into a web gateway's custom URL category, a DNS filter, or a blocklist."""
     domains: set[str] = set()
     for v in verdicts:
         if v.label == "malicious":
@@ -100,7 +100,7 @@ def netskope_url_list(verdicts, allowlist=()) -> list[str]:
 
 
 def write_blocklist(verdicts, path: str, allowlist=()) -> int:
-    domains = netskope_url_list(verdicts, allowlist)
+    domains = blocklist_domains(verdicts, allowlist)
     Path(path).write_text("\n".join(domains) + ("\n" if domains else ""))
     return len(domains)
 
