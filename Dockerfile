@@ -1,6 +1,6 @@
 # Image ships Chromium and its system dependencies. The playwright pin below must match the
 # image tag, so the browser build and the Python driver agree.
-FROM mcr.microsoft.com/playwright/python:v1.49.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.65.2-jammy
 
 WORKDIR /app
 COPY pyproject.toml README.md ./
