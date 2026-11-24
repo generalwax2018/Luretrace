@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import string
+import time
 from base64 import urlsafe_b64decode
 from urllib.parse import parse_qs, unquote, urlsplit
 
@@ -65,6 +66,32 @@ def is_mimecast(url: str) -> bool:
     )
 
 
+# Mimecast decoding is a network call per link: cache tokens (until expiry) and results.
+_MC_TOKENS: dict[tuple[str, str], tuple[str, float]] = {}
+_MC_DECODED: dict[str, str | None] = {}
+_MC_DECODED_MAX = 4096
+
+
+def _mimecast_token(client, base: str, cfg: dict) -> str:
+    key = (base, cfg["client_id"])
+    cached = _MC_TOKENS.get(key)
+    if cached and cached[1] > time.monotonic():
+        return cached[0]
+    resp = client.post(
+        f"{base}/oauth/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": cfg["client_id"],
+            "client_secret": cfg["client_secret"],
+        },
+    )
+    resp.raise_for_status()
+    body = resp.json()
+    lifetime = max(60, int(body.get("expires_in", 1800)) - 60)  # refresh a minute early
+    _MC_TOKENS[key] = (body["access_token"], time.monotonic() + lifetime)
+    return body["access_token"]
+
+
 def _mimecast(url: str, cfg: dict) -> str | None:
     """Decode through the Mimecast API. Needs API 2.0 client credentials.
 
@@ -72,25 +99,24 @@ def _mimecast(url: str, cfg: dict) -> str | None:
     """
     if not is_mimecast(url) or not cfg.get("client_id"):
         return None
+    if url in _MC_DECODED:
+        return _MC_DECODED[url]
     import httpx
 
     base = cfg.get("base_url", "https://api.services.mimecast.com")
     with httpx.Client(timeout=20) as client:
-        token = client.post(
-            f"{base}/oauth/token",
-            data={
-                "grant_type": "client_credentials",
-                "client_id": cfg["client_id"],
-                "client_secret": cfg["client_secret"],
-            },
-        ).json()["access_token"]
+        token = _mimecast_token(client, base, cfg)
         resp = client.post(
             f"{base}/api/ttp/url/decode-url",
             headers={"Authorization": f"Bearer {token}"},
             json={"data": [{"url": url}]},
         ).json()
     data = resp.get("data") or []
-    return data[0].get("url") if data and data[0].get("success", True) else None
+    decoded = data[0].get("url") if data and data[0].get("success", True) else None
+    if len(_MC_DECODED) >= _MC_DECODED_MAX:
+        _MC_DECODED.clear()
+    _MC_DECODED[url] = decoded
+    return decoded
 
 
 def unwrap(url: str, mimecast_cfg: dict | None = None, max_layers: int = 5) -> str:

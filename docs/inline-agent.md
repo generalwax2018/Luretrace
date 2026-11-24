@@ -32,14 +32,29 @@ click → [enforcement point] → POST /check {url} → decision → allow | blo
 | --- | --- | --- |
 | Phishing-simulation click | **allow** (and log) | `LURETRACE_SIM_ACTION` |
 | Allowlisted domain | allow | `LURETRACE_ALLOWLIST` |
-| Cached verdict: clean / internal | allow | — |
+| Not an http(s) link (`javascript:`, `data:`, `file:`) | **block** | — |
+| Cached verdict: clean, younger than `LURETRACE_CLEAN_MAX_AGE_H` (24 h) | allow | `LURETRACE_CLEAN_MAX_AGE_H` |
+| Cached verdict: clean but older (links are armed after delivery) | as "no verdict yet" | `LURETRACE_CLEAN_MAX_AGE_H` |
+| Cached verdict: internal (not detonated) | allow | — |
 | Cached verdict: suspicious | **isolate** | `LURETRACE_SUSPICIOUS_ACTION` |
 | Cached verdict: malicious | **block** | — |
 | No verdict yet | **isolate** | `LURETRACE_UNKNOWN_ACTION` |
 
-Simulation recognition (`src/luretrace/simcheck.py`) matches your sim vendor's domains and the
-headers they stamp (KnowBe4, Proofpoint PSAT, Cofense, Microsoft Attack Simulation). Maintain the
-lists for your campaigns — this is the same idea as Microsoft's Advanced Delivery allow-list.
+Verdicts are looked up by exact URL, then by the URL without its `#fragment` (kits personalise
+the fragment per recipient). The cache reads only new scan reports on each refresh, and a refresh
+forced by an unknown link is rate-limited, so a flood of unknown links cannot stall the gate.
+
+Simulation recognition (`src/luretrace/simcheck.py`) passes a click through when the landing URL
+is on your sim vendor's domains, or when the mail came from a simulation domain **and your mail
+system authenticated it** (DMARC pass, or an aligned DKIM pass, in `Authentication-Results`).
+A simulation header (`X-PhishTest` and the like) or a `From:` domain on its own is never enough:
+both are trivially forged, and a passthrough an attacker can claim is a bypass. That is the
+same reasoning behind Microsoft's Advanced Delivery list, which wants the sending domain *and* IP.
+If a vendor cannot send authenticated mail, `LURETRACE_SIM_TRUST_UNAUTHENTICATED=1` restores the
+weaker behaviour; do that knowingly.
+
+`GET /healthz` returns only `{"ok": true}`. It never echoes the policy, because the allowlist and
+simulation domains are exactly where an attacker would host a lure.
 
 ## Run it
 

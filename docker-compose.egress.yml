@@ -1,0 +1,29 @@
+# Opt-in network boundary for the scanner. Use together with the base file:
+#   docker compose -f docker-compose.yml -f docker-compose.egress.yml up --build
+#
+# The scanner is moved onto an internal-only network whose single way out is a squid proxy
+# that refuses private, loopback, link-local (cloud metadata) and CGNAT destinations. squid
+# resolves the name and connects to the address it checked, so DNS rebinding does not help.
+# luretrace's in-process guard still runs in front of it as defence in depth.
+#
+# Set `proxy: http://egress:3128` in config.yaml. HTTP clients (Graph, Mimecast, webhook)
+# follow HTTPS_PROXY. IMAP cannot use an HTTP proxy: use the Graph source with this file.
+services:
+  scanner:
+    networks: [scan-internal]
+    environment:
+      - HTTPS_PROXY=http://egress:3128
+      - HTTP_PROXY=http://egress:3128
+    depends_on: [egress]
+
+  egress:
+    image: ubuntu/squid:latest
+    volumes:
+      - ./deploy/squid.conf:/etc/squid/squid.conf:ro
+    networks: [scan-internal, outside]
+    restart: unless-stopped
+
+networks:
+  scan-internal:
+    internal: true
+  outside: {}

@@ -18,6 +18,9 @@ class Hop:
     has_email_field: bool = False
     form_actions: list[str] = field(default_factory=list)
     resource_hosts: list[str] = field(default_factory=list)
+    # host+path of requests to identity-provider asset hosts (tells a cloned login page apart
+    # from a "Sign in with Google" widget, which loads from the same host but other paths)
+    idp_requests: list[str] = field(default_factory=list)
     blocked_requests: list[str] = field(default_factory=list)
     text_excerpt: str = ""
     captcha: str | None = None
@@ -47,6 +50,9 @@ class Verdict:
     started_at: str = ""
     artifacts_dir: str | None = None
     message_id: str | None = None
+    origin: str = "body"  # body | attachment:<name> | qr:<name>
+    rescan_of: str | None = None  # the earlier label when this run is a rescan
+    actions: list[dict] = field(default_factory=list)  # response actions taken
 
     def to_dict(self) -> dict:
         return asdict(self)

@@ -3,17 +3,38 @@
 The simplest deployment is provider-agnostic: add a transport/journal rule that copies
 inbound external mail (or user-reported phish) to a dedicated mailbox, and point one of
 these sources at it.
+
+Messages are yielded *unacknowledged*: they stay unread until the caller has scanned them and
+calls `message.ack()`. A crash mid-scan therefore loses nothing; the message is fetched again on
+the next poll. The caller bounds retries (Config.max_attempts) so one poison message cannot
+block the mailbox forever.
 """
 from __future__ import annotations
 
 import imaplib
-from typing import Iterator
+from typing import Callable, Iterator
 
 import httpx
 
 
+class Message(bytes):
+    """Raw RFC 822 bytes plus a stable key and an ack() that marks the message processed."""
+
+    key: str
+    _ack: Callable[[], None]
+
+    def __new__(cls, raw: bytes, key: str, ack: Callable[[], None]):
+        obj = super().__new__(cls, raw)
+        obj.key = key
+        obj._ack = ack
+        return obj
+
+    def ack(self) -> None:
+        self._ack()
+
+
 class ImapSource:
-    """Poll a mailbox over IMAPS and yield unseen messages, marking them seen."""
+    """Poll a mailbox over IMAPS and yield unseen messages; ack() sets \\Seen."""
 
     def __init__(self, cfg: dict):
         self.host = cfg["host"]
@@ -22,16 +43,19 @@ class ImapSource:
         self.password = cfg["password"]
         self.folder = cfg.get("folder", "INBOX")
 
-    def fetch(self) -> Iterator[bytes]:
+    def fetch(self) -> Iterator[Message]:
         conn = imaplib.IMAP4_SSL(self.host, self.port)
         try:
             conn.login(self.user, self.password)
             conn.select(self.folder)
-            _, data = conn.search(None, "UNSEEN")
-            for num in data[0].split():
-                _, parts = conn.fetch(num, "(RFC822)")
-                if parts and parts[0]:
-                    yield parts[0][1]
+            _, data = conn.uid("SEARCH", None, "UNSEEN")
+            for uid in data[0].split():
+                # BODY.PEEK[] does not set \Seen: only a successful scan does (via ack).
+                _, parts = conn.uid("FETCH", uid, "(BODY.PEEK[])")
+                if parts and parts[0] and isinstance(parts[0], tuple):
+                    def ack(u=uid):
+                        conn.uid("STORE", u, "+FLAGS", "(\\Seen)")
+                    yield Message(parts[0][1], f"imap:{self.folder}:{uid.decode()}", ack)
         finally:
             try:
                 conn.logout()
@@ -68,7 +92,7 @@ class GraphSource:
         resp.raise_for_status()
         return resp.json()["access_token"]
 
-    def fetch(self) -> Iterator[bytes]:
+    def fetch(self) -> Iterator[Message]:
         with httpx.Client(timeout=30) as client:
             headers = {"Authorization": f"Bearer {self._token(client)}"}
             root = f"{self.base}/users/{self.mailbox}"
@@ -81,10 +105,10 @@ class GraphSource:
             for item in listing.json().get("value", []):
                 mime = client.get(f"{root}/messages/{item['id']}/$value", headers=headers)
                 if mime.status_code == 200:
-                    yield mime.content
-                    client.patch(
-                        f"{root}/messages/{item['id']}", json={"isRead": True}, headers=headers
-                    )
+                    def ack(mid=item["id"]):
+                        client.patch(f"{root}/messages/{mid}", json={"isRead": True},
+                                     headers=headers)
+                    yield Message(mime.content, f"graph:{item['id']}", ack)
 
 
 def build_source(cfg):

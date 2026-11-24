@@ -1,14 +1,28 @@
 # luretrace configuration. Copy to config.yaml and edit. Keep secrets out of git.
 output_dir: ./scans
 
+# Any string value can reference the environment: ${VAR} or ${VAR:-default}.
+# Use it for secrets, e.g. client_secret: ${MIMECAST_CLIENT_SECRET}
+
 # --- Detonation ---
 max_hops: 5
 nav_timeout_ms: 30000
 settle_timeout_ms: 8000
 locale: en-US
-timezone: America/New_York
-# Send browser traffic out through a dedicated egress proxy (recommended).
+timezone: America/New_York   # match where your egress IP geolocates; a mismatch is a tell
+# user_agent: ""             # empty = derived from the launched Chromium's version
+stealth: true                # hide navigator.webdriver and the automation flag
+browser_channel: chromium    # full Chromium's new headless mode; null = headless shell
+# Send browser traffic out through a dedicated http:// egress proxy (recommended).
 # proxy: http://egress-proxy.example:8080
+
+# --- Extraction ---
+scan_attachments: true       # HTML/SVG/PDF/.ics attachments; QR codes need the [attachments] extra
+max_attachment_bytes: 10000000
+
+# --- Enrichment ---
+rdap: false                  # domain registration age lookup (calls rdap.org)
+young_domain_days: 30
 
 # --- Triage ---
 # Never detonated (your own tenant, your phishing-simulation vendor, one-click action links).
@@ -42,18 +56,36 @@ suspicious_threshold: 30
 #   client_secret: "..."
 #   mailbox: linkscan@yourcompany.com
 poll_seconds: 60
+max_attempts: 3              # a message that keeps failing is marked processed after this many
+concurrency: 1               # links of one message detonated in parallel (~1 GB RAM each)
+
+# --- Job inbox (console submissions; drained by `watch` and `drain`) ---
+# inbox_dir: /shared/luretrace-inbox
+
+# --- Ingest connector for `luretrace ingest` ---
+# ingest:
+#   kind: mimecast            # or: datalake (query_url, query, token_url, field_map, ...)
+#   client_id: "..."
+#   client_secret: ${MIMECAST_CLIENT_SECRET}
 
 # --- Actions ---
 # Any JSON webhook: ServiceNow scripted REST, Sentinel/Logic App, Slack workflow, SOAR.
 # webhook_url: https://example.service-now.com/api/x/luretrace
 # webhook_headers:
 #   Authorization: "Bearer ..."
+# webhook_secret: ${LURETRACE_WEBHOOK_SECRET}   # adds X-Luretrace-Signature: sha256=<hmac>
+webhook_retries: 3
 notify_on: [suspicious, malicious]
 # Write an IOC file (phishing domain, URLs, hashes) per suspicious/malicious verdict.
 # ioc_dir: ./iocs
+# Append each malicious verdict's blockable domains here (push it to Netskope / the gateway).
+# blocklist_path: ./blocklist.txt
+# Soft-delete a malicious message from its recipients' mailboxes (needs the graph block).
+purge_on_malicious: false
 
 # --- Rescan (catch links armed after delivery) ---
-# Re-detonate each scanned link at these minute offsets; run `luretrace rescan` on a cron.
+# Links from scanned mail are queued automatically; run `luretrace rescan` on a cron.
+rescan_auto: true
 rescan_offsets_minutes: [15, 60, 240]
 rescan_queue: ./rescan-queue.json
 

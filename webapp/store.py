@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,39 +24,84 @@ def _scan_id(report_path: Path) -> str:
     return report_path.parent.name
 
 
+_SCAN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+
+
+def valid_scan_id(scan_id: str) -> bool:
+    return bool(_SCAN_ID.match(scan_id or "")) and ".." not in scan_id
+
+
+def _row(report: Path) -> dict | None:
+    try:
+        v = json.loads(report.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    hops = v.get("hops", [])
+    final = ""
+    for h in hops:
+        final = h.get("final_url") or h.get("requested_url") or final
+    return {
+        "id": _scan_id(report),
+        "label": v.get("label", "skipped"),
+        "score": v.get("score", 0),
+        "complete": v.get("complete", True),
+        "url": v.get("url", ""),
+        "original_url": v.get("original_url", ""),
+        "final_url": final,
+        "hops": len(hops),
+        "signals": len(v.get("signals", [])),
+        "message_id": v.get("message_id"),
+        "origin": v.get("origin", "body"),
+        "started_at": v.get("started_at", ""),
+    }
+
+
 def load_index() -> list[dict]:
     """Every scan as a lightweight row, newest first."""
-    rows = []
     root = scans_dir()
     if not root.exists():
-        return rows
-    for report in root.glob("*/report.json"):
-        try:
-            v = json.loads(report.read_text())
-        except Exception:
-            continue
-        hops = v.get("hops", [])
-        final = ""
-        for h in hops:
-            final = h.get("final_url") or h.get("requested_url") or final
-        rows.append({
-            "id": _scan_id(report),
-            "label": v.get("label", "skipped"),
-            "score": v.get("score", 0),
-            "complete": v.get("complete", True),
-            "url": v.get("url", ""),
-            "original_url": v.get("original_url", ""),
-            "final_url": final,
-            "hops": len(hops),
-            "signals": len(v.get("signals", [])),
-            "message_id": v.get("message_id"),
-            "started_at": v.get("started_at", ""),
-        })
+        return []
+    rows = [r for r in (_row(p) for p in root.glob("*/report.json")) if r]
     rows.sort(key=lambda r: r["started_at"], reverse=True)
     return rows
 
 
+class IncrementalIndex:
+    """Yields rows only for report.json files that are new (or rewritten) since the last call.
+
+    Scan directories are written once, so after the first pass each refresh costs a directory
+    listing and a stat per scan, not a JSON parse per scan.
+    """
+
+    def __init__(self):
+        self._seen: dict[str, float] = {}
+        self._root: Path | None = None
+
+    def new_rows(self) -> list[dict]:
+        root = scans_dir()
+        if root != self._root:  # LURETRACE_SCANS changed (tests, reconfiguration)
+            self._seen, self._root = {}, root
+        if not root.exists():
+            return []
+        rows = []
+        for report in root.glob("*/report.json"):
+            key = str(report)
+            try:
+                mtime = report.stat().st_mtime
+            except OSError:
+                continue
+            if self._seen.get(key) == mtime:
+                continue
+            row = _row(report)
+            if row is not None:
+                self._seen[key] = mtime
+                rows.append(row)
+        return rows
+
+
 def load_scan(scan_id: str) -> dict | None:
+    if not valid_scan_id(scan_id):
+        return None
     report = scans_dir() / scan_id / "report.json"
     if not report.is_file():
         return None

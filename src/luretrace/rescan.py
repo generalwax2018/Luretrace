@@ -7,6 +7,7 @@ queue re-runs the same URL at configured offsets and flags any verdict that wors
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +21,7 @@ class RescanItem:
     message_id: str | None = None
     done_offsets: list[int] = field(default_factory=list)
     first_label: str | None = None
+    origin: str = "body"
 
 
 def _now() -> datetime:
@@ -45,17 +47,23 @@ class RescanQueue:
         self.path = Path(path)
         self.items: list[RescanItem] = []
         if self.path.exists():
-            self.items = [RescanItem(**d) for d in json.loads(self.path.read_text())]
+            known = set(RescanItem.__dataclass_fields__)
+            self.items = [RescanItem(**{k: v for k, v in d.items() if k in known})
+                          for d in json.loads(self.path.read_text(encoding="utf-8"))]
 
     def _save(self) -> None:
-        self.path.write_text(json.dumps([asdict(i) for i in self.items], indent=2))
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_name(self.path.name + ".tmp")
+        tmp.write_text(json.dumps([asdict(i) for i in self.items], indent=2), encoding="utf-8")
+        os.replace(tmp, self.path)  # a crash mid-write never leaves a truncated queue
 
-    def add(self, url: str, offsets: list[int], message_id=None, first_label=None) -> None:
+    def add(self, url: str, offsets: list[int], message_id=None, first_label=None,
+            origin: str = "body") -> None:
         if any(i.url == url and i.message_id == message_id for i in self.items):
             return
         self.items.append(RescanItem(
             url=url, created_at=_now().isoformat(), offsets_minutes=sorted(offsets),
-            message_id=message_id, first_label=first_label,
+            message_id=message_id, first_label=first_label, origin=origin,
         ))
         self._save()
 
@@ -65,9 +73,7 @@ class RescanQueue:
     def mark_done(self, item: RescanItem, offset: int) -> None:
         if offset not in item.done_offsets:
             item.done_offsets.append(offset)
-        self.items = [i for i in self.items if i.done_offsets != sorted(i.offsets_minutes)
-                      or i is item]
         # Drop items that have completed every offset.
         self.items = [i for i in self.items
-                      if sorted(i.done_offsets) != sorted(i.offsets_minutes)]
+                      if set(i.done_offsets) != set(i.offsets_minutes)]
         self._save()

@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -21,8 +24,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
+      # web + attachments so the gate/console and QR tests run instead of skipping.
       - name: Install package
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,web,attachments]"
+
+      - name: Lint
+        run: ruff check .
 
       - name: Install Chromium for the detonation tests
         run: python -m playwright install --with-deps chromium

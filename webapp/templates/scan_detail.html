@@ -11,6 +11,7 @@
   <div class="head-meta small muted">
     <div>{{ icon('clock',14) }} {{ v.started_at | ftime }}</div>
     {% if v.message_id %}<div class="mono">{{ v.message_id }}</div>{% endif %}
+    {% if v.origin and v.origin != 'body' %}<div>found in <span class="mono">{{ v.origin }}</span></div>{% endif %}
     <div>{{ 'chain followed to end' if v.complete else 'chain INCOMPLETE — unverified' }}</div>
   </div>
 </div>

@@ -120,14 +120,65 @@ def test_submit_form(client):
     assert r.status_code == 200 and "Submit a link" in r.text
 
 
-def test_submit_private_url_is_skipped_without_browser(client):
+def _token(client) -> str:
+    import re
+    page = client.get("/submit").text
+    return re.search(r'name="csrf" value="([0-9a-f]+)"', page).group(1)
+
+
+def test_submit_private_url_is_skipped_without_browser(client, monkeypatch):
+    monkeypatch.delenv("LURETRACE_INBOX", raising=False)
     # A non-public target is skipped before any browser launches, so this is hermetic.
-    r = client.post("/submit", data={"url": "http://10.0.0.1/secret"})
+    r = client.post("/submit", data={"url": "http://10.0.0.1/secret", "csrf": _token(client)})
     assert r.status_code == 200
     assert "No detonation" in r.text or "skipped" in r.text.lower()
 
 
 def test_submit_empty_shows_error(client):
-    r = client.post("/submit", data={"url": ""})
+    r = client.post("/submit", data={"url": "", "csrf": _token(client)})
     assert r.status_code == 200
     assert "enter a URL" in r.text or "enter a url" in r.text.lower()
+
+
+def test_submit_requires_form_token(client):
+    assert client.post("/submit", data={"url": "https://x.example/"}).status_code == 403
+    assert client.post("/submit", data={"url": "https://x.example/", "csrf": "0" * 64}
+                       ).status_code == 403
+
+
+def test_submit_rejects_cross_site_posts(client):
+    r = client.post("/submit", data={"url": "https://x.example/", "csrf": _token(client)},
+                    headers={"Origin": "https://attacker.example"})
+    assert r.status_code == 403
+
+
+def test_submit_rejects_non_http_links(client):
+    r = client.post("/submit", data={"url": "file:///etc/passwd", "csrf": _token(client)})
+    assert "only http(s)" in r.text
+
+
+def test_submit_queue_mode_hands_work_to_the_worker(client, tmp_path, monkeypatch):
+    inbox_dir = tmp_path / "inbox"
+    monkeypatch.setenv("LURETRACE_INBOX", str(inbox_dir))
+    r = client.post("/submit", data={"url": "https://lure.example.com/x", "csrf": _token(client)})
+    assert r.status_code == 200 and "Queued" in r.text
+    jobs = list(inbox_dir.glob("*.url.json"))
+    assert len(jobs) == 1 and json.loads(jobs[0].read_text())["url"] == "https://lure.example.com/x"
+
+
+def test_security_headers(client):
+    r = client.get("/")
+    assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
+    assert r.headers["referrer-policy"] == "no-referrer"
+    assert r.headers["x-content-type-options"] == "nosniff"
+
+
+def test_scan_ids_are_validated(client, tmp_path):
+    from webapp import store
+    # A report.json one level above the scans dir must not be reachable as a "scan".
+    (store.scans_dir().parent / "report.json").write_text("{}")
+    for bad in ("..", ".", "../x", "a/b", "a\\b", "", "x" * 200):
+        assert not store.valid_scan_id(bad), bad
+        assert store.load_scan(bad) is None
+    assert store.valid_scan_id("20261117T090000-abcd1234-0f3a")
+    assert client.get("/scans/%2E%2E").status_code == 200  # renders not-found, no traversal

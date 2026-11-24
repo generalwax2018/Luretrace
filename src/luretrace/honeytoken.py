@@ -45,22 +45,22 @@ async def submit(verdict: Verdict, honeytoken_cfg: dict, cfg) -> dict | None:
     if target_hop is None:
         return None
 
-    canary = {
-        "username": honeytoken_cfg.get("username") or generate_canary()["username"],
-        "password": honeytoken_cfg.get("password") or generate_canary()["password"],
-    }
+    # A canary only detects anything if it is seeded and monitored in your IdP, so never
+    # invent one on the fly: require the configured identity.
+    if not honeytoken_cfg.get("username") or not honeytoken_cfg.get("password"):
+        return None
+    canary = {"username": honeytoken_cfg["username"], "password": honeytoken_cfg["password"]}
     from playwright.async_api import async_playwright
 
-    from .detonate import EMAIL_SEL
+    from .detonate import EMAIL_SEL, launch_browser, new_context
+    from .guardproxy import egress
 
     url = target_hop.final_url or target_hop.requested_url
-    launch = {"headless": True, "args": ["--disable-dev-shm-usage"]}
-    if cfg.proxy:
-        launch["proxy"] = {"server": cfg.proxy}
     submitted = False
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(**launch)
-        context = await browser.new_context(user_agent=cfg.user_agent, locale=cfg.locale)
+    # Same egress guard as detonation: the submission must not be steerable to internal hosts.
+    async with egress(cfg) as launch, async_playwright() as p:
+        browser = await launch_browser(p, cfg, launch)
+        context = await new_context(browser, cfg)
         page = await context.new_page()
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=cfg.nav_timeout_ms)

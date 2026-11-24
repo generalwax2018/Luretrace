@@ -51,5 +51,15 @@ These are seams written to published docs; validate against your tenant before r
   renders them. Only PNG screenshots display inline.
 - The artifact route only serves whitelisted filenames from inside a scan directory; path
   traversal is rejected.
+- **On-demand submission does not have to detonate here.** With `LURETRACE_INBOX` set (or
+  `LURETRACE_SUBMIT_MODE=queue`) the console only writes a job file; the isolated worker runs it
+  (`luretrace watch` / `luretrace drain` with `inbox_dir` pointing at the same directory).
+  `LURETRACE_SUBMIT_MODE=off` disables submission; `local` keeps the old in-process detonation.
+- `/submit` requires a form token and rejects cross-site posts, so a page an analyst happens to
+  visit cannot trigger scans. Set `LURETRACE_CONSOLE_SECRET` to keep tokens valid across restarts
+  or replicas.
+- Every response carries a strict Content-Security-Policy (no inline script, no framing),
+  `nosniff`, and `Referrer-Policy: no-referrer`, so phishing hosts named on a page never learn
+  about the console through Referer.
 - Run the console on an internal network. It exposes scan data and should sit behind your SSO /
-  reverse proxy; it has no auth of its own by design (keep it simple, front it with what you have).
+  reverse proxy; it has no login of its own by design (front it with what you have).

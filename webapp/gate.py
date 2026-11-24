@@ -7,6 +7,8 @@ Env:  LURETRACE_SCANS            scans dir the verdict cache reads
       LURETRACE_SIM_ACTION       allow (default) | isolate
       LURETRACE_ALLOWLIST        comma-separated domains never blocked
       LURETRACE_SIM_DOMAINS      extra phishing-simulation domains
+      LURETRACE_SIM_TRUST_UNAUTHENTICATED  1 = accept sim mail without DMARC/DKIM pass (weaker)
+      LURETRACE_CLEAN_MAX_AGE_H  hours a clean verdict stays trusted (default 24; 0 = forever)
       LURETRACE_ISOLATION_URL    RBI base; the gate sends isolate decisions here as ?url=<target>
 
 Endpoints:
@@ -34,13 +36,28 @@ templates.env.globals["app_name"] = "luretrace"
 POLICY = Policy.from_env()
 
 
+@gate_app.middleware("http")
+async def security_headers(request: Request, call_next):
+    from .server import _SECURITY_HEADERS
+    response = await call_next(request)
+    for key, value in _SECURITY_HEADERS.items():
+        response.headers.setdefault(key, value)
+    return response
+
+
 @gate_app.post("/check")
 async def check(request: Request):
-    body = await request.json()
-    url = (body.get("url") or "").strip()
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse({"action": "block", "reason": "bad_request"}, status_code=400)
+    url = str(body.get("url") or "").strip()
     if not url:
         return JSONResponse({"action": "block", "reason": "no_url"}, status_code=400)
-    d = decide(url, POLICY, headers=body.get("headers"))
+    headers = body.get("headers")
+    d = decide(url, POLICY, headers=headers if isinstance(headers, dict) else None)
     return d.to_dict()
 
 
@@ -60,4 +77,6 @@ def go(request: Request, u: str = ""):
 
 @gate_app.get("/healthz")
 def healthz():
-    return {"ok": True, "policy": POLICY.__dict__}
+    # Never publish the policy: the allowlist and simulation domains are exactly where an
+    # attacker would host a lure to get waved through.
+    return {"ok": True}

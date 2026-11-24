@@ -28,18 +28,26 @@ a product, so it stays vendor-neutral).
 
 ## What it does
 
-- **Extracts** links from `.eml` bodies and HTML parts, and refangs `hxxp://` / `[.]` forms.
+- **Extracts** links from `.eml` bodies, HTML/SVG attachments (including URLs hidden in script
+  and base64, as HTML-smuggling lures do), calendar invites, PDF link annotations, and **QR codes**
+  in images (`pip install -e ".[attachments]"`). Refangs `hxxp://` / `[.]` forms.
 - **Unwraps** Microsoft Safe Links and Proofpoint URL Defense (v2, v3) offline, and Mimecast
   links through the Mimecast API.
 - **Detonates** in Chromium (Playwright): records every redirect, a screenshot and the HTML of
   each hop, a HAR of the whole chain, and the SHA-256 of any download.
 - **Follows** the most lure-like external link on each page ("View Document", "Review file")
-  for up to `max_hops` pages, across iframes.
+  for up to `max_hops` pages, across iframes, including script-driven buttons and popup windows.
+- **Guards egress**: every browser connection (redirects, WebSockets, popups) goes through a local
+  guard proxy that refuses private, loopback and metadata addresses and connects only to the
+  address it checked. Common automation tells are hidden so kits are less likely to serve a decoy.
 - **Scores** the chain. The main signal is a branded sign-in page (Microsoft, Google, Okta,
   DocuSign, Dropbox) served from a domain that brand does not own.
 - **Fails closed**: a chain it could not finish (CAPTCHA gate, error, hop limit) is reported as
   `suspicious`, never `clean`.
-- **Notifies** any JSON webhook (ServiceNow, Sentinel, SOAR, Slack) and writes a `report.json`.
+- **Notifies** any JSON webhook (ServiceNow, Sentinel, SOAR, Slack), signed with HMAC-SHA256
+  when `webhook_secret` is set and retried with backoff, and writes a `report.json`.
+- **Responds** (each opt-in, each recorded in the report): IOC files, a blocklist that never
+  blocks shared platforms whole, a Graph purge from the recipients' mailboxes, and the honeytoken.
 
 ## Quick start
 
@@ -49,10 +57,19 @@ playwright install chromium
 
 luretrace url "https://example.org/"
 luretrace eml suspicious.eml
-luretrace -c config.yaml watch        # poll a mailbox (IMAP or Microsoft Graph)
+luretrace -c config.yaml watch        # poll a mailbox (IMAP or Graph) and drain the job inbox
+luretrace -c config.yaml drain        # run queued jobs (console submissions) once
+luretrace -c config.yaml ingest       # pull links from Mimecast / a data lake and scan them
 luretrace -c config.yaml beacon       # run the login-page proxying tripwire
 luretrace -c config.yaml rescan       # re-detonate queued links (run on a cron)
+luretrace -c config.yaml blocklist blocked.txt   # domains from every malicious scan on disk
+luretrace -c config.yaml eval labels.csv --out eval.json   # precision / recall on labelled links
 ```
+
+Mail scanned by `watch`, `eml`, `ingest` and the inbox is queued for rescan automatically
+(`rescan_auto`), because a clean first scan is not durable; a rescan that comes back worse is
+reported and sent to the webhook. A mailbox message is marked read only after it was scanned; one
+that keeps failing is given up on after `max_attempts` instead of blocking the mailbox.
 
 Exit code is `0` clean, `1` suspicious, `2` malicious, so it drops into scripts and SOAR steps.
 
@@ -69,15 +86,19 @@ export LURETRACE_SCANS=./scans
 uvicorn webapp.server:app --port 8099
 ```
 
-See `webapp/README.md`.
+Set `LURETRACE_INBOX` to a directory the isolated worker drains and the console's on-demand
+submissions are queued there instead of being detonated on the console host. See
+`webapp/README.md`.
 
 ## Click-time gate (inline)
 
 An optional enforcement layer that moves the check to the moment of the click: the navigation is
 held, luretrace's verdict is consulted, and the click is allowed, blocked, or sent to isolation —
 before any credential is entered. Phishing-simulation clicks pass straight through, so training
-exercises are never blocked. It never detonates in the hot path (it reads a verdict cache the
-pre-scan fills), and an unknown link fails safe to isolation.
+exercises are never blocked — but only on evidence an attacker cannot type (the vendor's landing
+domain, or simulation mail your mail system authenticated); a simulation header alone never
+passes. It never detonates in the hot path (it reads a verdict cache the pre-scan fills), an
+unknown link fails safe to isolation, and a clean verdict older than 24 h is no longer trusted.
 
 ```bash
 export LURETRACE_SCANS=./scans
@@ -116,9 +137,28 @@ luretrace does not sit inline. Copy mail to a mailbox it can read:
 | `chain_incomplete` | 30 | Chain could not be followed to an end |
 | `download_triggered` | 25 | The chain delivered a file |
 | `fileshare_lure_to_login` | 20 | File-share link ended at a credential form elsewhere |
+| `recipient_in_url` | 20 | Link carries the recipient's address (plain, encoded or base64) |
+| `young_domain` | 20 | Credential/final domain registered under `young_domain_days` ago (`rdap: true`) |
 | `captcha_gate` | 15 | Turnstile / hCaptcha / reCAPTCHA in the chain |
 | `cross_domain_form_post` | 15 | Login form posts to a different domain |
+| `qr_code_link` | 15 | Link was delivered as a QR code |
 | `long_redirect_chain` | 10 | More than three HTTP redirects |
+| `email_in_url` | 10 | Link carries some email address |
+| `markup_attachment_link` | 10 | Link came from an HTML/SVG attachment |
+
+`brand_login_off_domain` asks whether a page claims to *be* a brand's sign-in, not whether it
+mentions one (every SaaS login with a "Sign in with Microsoft" button does). Decisive evidence is
+the brand's own login-UI assets (by host and path, so Google's sign-in widgets at
+`accounts.google.com/gsi/*` don't count) or the brand's sign-in page source served from another
+domain, as an AiTM proxy does. Otherwise it needs the brand's sign-in title or flow wording, with
+SSO-button menus and third-party notices ignored. On 28 real SaaS login pages it fired on none
+(three still come out `suspicious` as *unverified*: two behind a Cloudflare challenge the scanner
+could not pass, one whose domain no longer exists); saved copies of the real Microsoft and Google
+sign-in pages served from another domain score malicious.
+
+| Signal | Score | Meaning |
+| --- | --- | --- |
+| `does_not_resolve` | 30 | The link's domain does not resolve from the scanner: unverified (never "skipped", which the gate allows), queued for rescan |
 
 Scores add up, capped at 100. Defaults: 70 and above is `malicious`, 30 and above is `suspicious`.
 
@@ -127,10 +167,11 @@ Scores add up, capped at 100. Defaults: 70 and above is `malicious`, 30 and abov
 This tool visits hostile pages on purpose.
 
 - **Isolate it.** Run on a disposable host or VM in a segment with its own internet egress and
-  no route to corporate networks or cloud metadata endpoints. The built-in guard refuses
-  non-public addresses, but it is defence in depth, not the boundary. When `proxy` is set,
-  names that do not resolve locally are passed to the proxy, so the proxy's ACLs must deny
-  internal destinations.
+  no route to corporate networks or cloud metadata endpoints. The built-in guard proxy refuses
+  non-public addresses, but it is defence in depth, not the boundary. When `proxy` (an
+  `http://` egress proxy) is set, names that do not resolve locally are passed to it, so its ACLs
+  must deny internal destinations. `docker-compose.egress.yml` ships such a boundary: an
+  internal-only network whose one way out is a squid proxy that refuses private destinations.
 - **Opening a link is an action.** One-time links, approve/unsubscribe links and phishing
   simulation trackers will fire. Put those domains in `allowlist_domains`.
 - **Attackers can see the visit.** Detonation may confirm the mailbox is live. Egress from
@@ -182,12 +223,11 @@ other half:
 
 ## Roadmap
 
-- Domain and certificate age (RDAP, CT logs), and reputation lookups
-- QR codes and links inside PDF and Office attachments
-- Rescan schedule for links armed after delivery
-- Opt-in canary credentials submitted to confirmed phishing pages
-- Vision-model check of screenshots for brand impersonation
-- Response actions: Graph message purge, Netskope and Mimecast blocklist push
+- Certificate age (CT logs) and reputation lookups (domain age via RDAP is in)
+- Links inside Office attachments, and QR codes rendered inside PDFs
+- Visual brand matching (logo/favicon hash or a vision model) instead of text patterns
+- Direct API push of the blocklist to Netskope and Mimecast (today: a file you push)
+- A durable queue (Service Bus / Redis) behind the file inbox and the rescan queue
 - Hand-off of downloads to a malware sandbox (CAPEv2)
 
 ## Development

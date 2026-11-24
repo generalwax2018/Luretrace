@@ -47,8 +47,7 @@ def test_build_source_errors_when_unconfigured():
 # --- ingest connectors ------------------------------------------------------
 def test_build_connector_dispatch_and_items():
     from luretrace.simcheck import SIM_DOMAINS  # noqa: F401  (import smoke)
-    from webapp.ingest import (DataLakeConnector, IngestItem, MimecastConnector,
-                               build_connector)
+    from webapp.ingest import DataLakeConnector, IngestItem, MimecastConnector, build_connector
     mc = build_connector("mimecast", {"client_id": "c", "client_secret": "s"})
     assert isinstance(mc, MimecastConnector) and mc.name == "mimecast"
     dl = build_connector("datalake", {"query_url": "https://q", "query": "select 1",
